@@ -12,15 +12,15 @@ public class Gatos extends PApplet {
 
     PFont fuente;              // Fuente para mostrar texto en pantalla
 
-    int tamanioMosaico = 6;    // Tamanio de cada mosaico cuadrado (en pixeles).
+    int tamanioMosaico = 10;    // Tamanio de cada mosaico cuadrado (en genes).
     int profundidad = 0;       // Profundidad a la que se ha expandido el árbol.
     int diametroMaximo = 1;    // Mayor número de estados expandidos a la misma profundidad.
 
     int anchoImagen;
     int altoImagen;
     int anchoGato, altoGato;           // Dimensiones en pixeles del dibujo de cada gato.
-    boolean modificaVentana = true;   // Indica cuando las dimensiones del árbol se han incrementado.
-    boolean genera = true;            // Bandera para solicitar la expansión del siguiente nivel.
+    boolean modificaVentana = false;   // Indica cuando las dimensiones del árbol se han incrementado.
+    boolean genera = false;            // Bandera para solicitar la expansión del siguiente nivel.
 
     static int MARCA1 = 1;             // Número usado en el tablero del gato para marcar al primer jugador.
     static int MARCA2 = 4;             // Se usan int en lugar de short porque coincide con el tamaño de la palabra, el código se ejecuta ligeramente más rápido.
@@ -56,6 +56,7 @@ public class Gatos extends PApplet {
     public void draw(){
         try{
             if(genera) generaSiguienteNivel();
+
             if (modificaVentana){
                 System.out.println("Profundidad " + profundidad + ':');
                 System.out.println("Diámetro máximo " + diametroMaximo + ". Nodos en el último nivel: " + listaAbierta.size());
@@ -233,14 +234,37 @@ public class Gatos extends PApplet {
         * Además, se optimiza el proceso no agregando estados con jugadas simétricas.
         * Los estados nuevos tendrán una tirada más y el jugador en turno será el jugador contrario.
         */
-        LinkedList<Gato> generaSucesores(){
+        LinkedList<Gato> generaSucesores() {
+            if (hayGanador || tiradas == 9) return null;
+            Hashtable<Integer, Gato> hw =  new Hashtable<Integer, Gato>();
+
+            for (int i = 0; i < 3 ; i++ ) {
+                for (int j = 0; j < 3; j++) {
+                    boolean add = true;
+                    Gato g = new Gato(this);
+                    g.jugador1 = !jugador1;
+                    g.padre = this;
+
+                    if (g.tablero[i][j] == 0)
+                        g.tiraEn(i,j);
+                    
+                    int h = g.hashCode();
+
+                    if (!hw.containsKey(h) && g.tiradas > g.padre.tiradas) {
+                        hw.put(g.hashCode(), g);
+                    } 
+                }   
+            }
+            sucesores = new LinkedList<Gato>(hw.values());
+            return sucesores;
+
+
             // -------------------------------
             //        IMPLEMENTACION
             // -------------------------------
             // Hint: se debe verificar si el estado sigue siendo valido, si lo es, generar a sus sucesores
             // usando una lista ligada. recuerden que deben especificar que jugador jugó. No vayan a  
             // dejar sin padre a los sucesores.
-            return null;
         }
 
         int [][] reflejaIzq (int[][] t) {
@@ -302,35 +326,37 @@ public class Gatos extends PApplet {
 
         /** Al reflejar el gato sobre la diagonal \ son iguales (ie traspuesta) */
         boolean esSimetricoDiagonalInvertida(Gato otro){
-            // -------------------------------
-            //        IMPLEMENTACION
-            // -------------------------------
-
-            return false;
+            int [][] tmp = otro.tablero;
+            int [][] tmp2 = reflejaIzq(tablero);
+            return tablerosIguales(tmp, traspuesta(tmp2));
         }
 
         /** Al reflejar el gato sobre la diagonal / son iguales (ie traspuesta) */
         boolean esSimetricoDiagonal(Gato otro){
-            // -------------------------------
-            //        IMPLEMENTACION
-            // -------------------------------
-            return false;
+            int [][] tmp = otro.tablero;
+            int [][] tmp2 = tablero;
+            return tablerosIguales(tmp, traspuesta(tmp2));
+
         }
 
         /** Al reflejar el otro gato sobre la vertical son iguales */
         boolean esSimetricoVerticalmente(Gato otro){
-            // -------------------------------
-            //        IMPLEMENTACION
-            // -------------------------------
-            return false;
+            for(int i = 0; i < 3; i++){
+                for(int j = 0; j < 3; j++){
+                    if(tablero[i][j] != otro.tablero[i][2-j]) return false;
+                }
+            }
+            return true;
         }
 
         /** Al reflejar el otro gato sobre la horizontal son iguales */
         boolean esSimetricoHorizontalmente(Gato otro){
-            // -------------------------------
-            //        IMPLEMENTACION
-            // -------------------------------
-            return false;
+            for(int i = 0; i < 3; i++){
+                for(int j = 0; j < 3; j++){
+                    if(tablero[i][j] != otro.tablero[i][2-j]) return false;
+                }
+            }
+            return true;
         }
 
         /** Rota el otro tablero 90° en la dirección de las manecillas del reloj. */
@@ -361,7 +387,6 @@ public class Gatos extends PApplet {
                 }
             }
             return true;
-            return false;
         }
 
         /**
@@ -381,8 +406,23 @@ public class Gatos extends PApplet {
             if(esSimetrico180(otro)) return true;
             if(esSimetrico270(otro)) return true;
 
+
             return false;
         }
+
+        @Override
+        public int hashCode () {
+            int hash = 0;
+            int [][] kernel = {{1,2,1},{2,4,2},{1,2,1}};
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    hash += kernel[i][j] * tablero[i][j];
+                }
+            }
+
+            return hash;
+        }
+
 
         /** Devuelve una representación con caracteres de este estado.
         *  Se puede usar como auxiliar al probar segmentos del código. 
@@ -424,7 +464,7 @@ public class Gatos extends PApplet {
         numGatos = listaAbierta.size();
         if(numGatos > diametroMaximo) diametroMaximo = numGatos;
         genera = false;
-        modificaVentana = true;
+        modificaVentana = false;
     }
 
 
